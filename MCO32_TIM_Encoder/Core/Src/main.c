@@ -22,6 +22,11 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include "fonts.h"
+#include "tft.h"
+#include "user_setting.h"
+#include "functions.h"
+#include "stdio.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -41,11 +46,12 @@
 /* Private variables ---------------------------------------------------------*/
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
+uint16_t ID = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -54,6 +60,7 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -75,6 +82,7 @@ int main(void)
 	int iDir = 0;
 	char sBordas[30];
 	int iSize = 0;
+	char msg[50];
 
   /* USER CODE END 1 */
 
@@ -99,14 +107,29 @@ int main(void)
   MX_USART2_UART_Init();
   MX_TIM1_Init();
   MX_TIM2_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
-  HAL_TIM_Encoder_Start(&htim1, TIM_CHANNEL_ALL); //Habilita o encoder
-  __HAL_TIM_SET_COUNTER(&htim1, 0); //Zera o contador
-  HAL_UART_Transmit(&huart2, "Teste Encoder Incremental\r\n", 27, 100); //Mensagem de abertura
+  /* Inicializa display */
+  tft_gpio_init(); //Inicializa os GPIOs do LCD (evita uso do CubeMX)
+  HAL_TIM_Base_Start(&htim1); //Inicializa o Timer3 (base de tempo de us do LCD)
+  ID = tft_readID(); //Lê o ID do LCD (poderia ser chamada pela inicialização do LCD)
+  HAL_Delay(100);
+  tft_init(ID); //Inicializa o LCD de acordo com seu ID
+  setRotation(3); //Ajusta a orientação da tela (retrato)
+  fillScreen(BLACK); //Preenche a tela em uma só cor
 
+  /* Inicializa encoder */
+  HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL); //Habilita o encoder
+  __HAL_TIM_SET_COUNTER(&htim3, 0); //Zera o contador
+
+  /* Inicializa PWM (servo) */
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4); //Habilita PWM
   htim2.Instance->CCR4 = 0 + 60; //60 = 0,6 ms, 0 = 0,0 ms, total = 0,6 ms
+
+  /* Abertura */
+  HAL_UART_Transmit(&huart2, (uint8_t *)"Teste Encoder Incremental\r\n", 27, 100); //Mensagem de abertura
+  printnewtstr(20, GREEN, &mono12x7bold, 1, (uint8_t *)"Encoder Incremental");
 
   /* USER CODE END 2 */
 
@@ -114,32 +137,34 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
 	  //Testa se o contador de pulsos mudou
-	  if(iBordas != __HAL_TIM_GET_COUNTER(&htim1))
+	  if(iBordas != __HAL_TIM_GET_COUNTER(&htim3))
 	  {
 		  //Atualiza a variável
-		  iBordas = __HAL_TIM_GET_COUNTER(&htim1);
+		  iBordas = __HAL_TIM_GET_COUNTER(&htim3);
 		  //Testa de o sentido de giro mudou
-		  if(iDir != __HAL_TIM_DIRECTION_STATUS(&htim1))
+		  if(iDir != __HAL_TIM_DIRECTION_STATUS(&htim3))
 		  {
 			  //Atualiza a variável
-			  iDir = __HAL_TIM_DIRECTION_STATUS(&htim1);
+			  iDir = __HAL_TIM_DIRECTION_STATUS(&htim3);
 			  //Mostra o sentido
 			  if(iDir)
-				  HAL_UART_Transmit(&huart2, "Sentido antihorario\r\n", 22, 100);
+				  HAL_UART_Transmit(&huart2, (uint8_t *)"Sentido antihorario\r\n", 22, 100);
 			  else
-				  HAL_UART_Transmit(&huart2, "Sentido horario\r\n", 17, 100);
+				  HAL_UART_Transmit(&huart2, (uint8_t *)"Sentido horario\r\n", 17, 100);
 		  }
 		  //Mostra o total de bordas
 		  iSize = sprintf(sBordas, "Bordas: %d\r\n", iBordas);
-		  HAL_UART_Transmit(&huart2, sBordas, iSize, 100);
+		  HAL_UART_Transmit(&huart2, (uint8_t *)sBordas, iSize, 100);
 		  //Mostra o total de clicks
 		  iSize = sprintf(sBordas, "Clicks do KY-040: %d\r\n", iBordas>>1);
-		  HAL_UART_Transmit(&huart2, sBordas, iSize, 100);
+		  HAL_UART_Transmit(&huart2, (uint8_t *)sBordas, iSize, 100);
 	  }
 
 	  htim2.Instance->CCR4 = (iBordas>>1) + 60; //Ajusta dutycycle do PWM
+
+	  sprintf(msg, "Posicao: %3d graus", iBordas>>1);
+	  printnewtstr_bc(60, GREEN, BLACK, &mono12x7bold, 1, (uint8_t *)&msg);
 
     /* USER CODE END WHILE */
 
@@ -207,29 +232,25 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 0 */
 
-  TIM_Encoder_InitTypeDef sConfig = {0};
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
 
   /* USER CODE BEGIN TIM1_Init 1 */
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 0;
+  htim1.Init.Prescaler = 84-1;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 360;
+  htim1.Init.Period = 0xFFFF;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
-  sConfig.EncoderMode = TIM_ENCODERMODE_TI1;
-  sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
-  sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
-  sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
-  sConfig.IC1Filter = 15;
-  sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
-  sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
-  sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
-  sConfig.IC2Filter = 15;
-  if (HAL_TIM_Encoder_Init(&htim1, &sConfig) != HAL_OK)
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
   {
     Error_Handler();
   }
@@ -301,6 +322,55 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 2 */
   HAL_TIM_MspPostInit(&htim2);
+
+}
+
+/**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_Encoder_InitTypeDef sConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 0;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 360;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  sConfig.EncoderMode = TIM_ENCODERMODE_TI1;
+  sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC1Filter = 15;
+  sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC2Filter = 15;
+  if (HAL_TIM_Encoder_Init(&htim3, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
 
 }
 
