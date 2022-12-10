@@ -104,7 +104,8 @@ void MPU6050_calcGyroOffsets(){
 	gyroZoffset = xyz[2] / GYRO_OFFSET_NB_MES;
 }
 
-void MPU6050_update(){
+void MPU6050_update()
+{
 	uint8_t raw[14];
 	int16_t rawData[7]; // [ax,ay,az,temp,gx,gy,gz]
 
@@ -112,7 +113,8 @@ void MPU6050_update(){
 	readMPU6050_n(0x3B, raw, 14); //3B é o endereço do ACCEL_XOUT_H
 
 	//Combina o LSB com MSB, todos os valores são de 16 bits
-	for(int i=0;i<7;i++){
+	for(int i=0;i<7;i++)
+	{
 		rawData[i]  = raw[i*2] << 8;
 		rawData[i] |= raw[i*2+1];
 	}

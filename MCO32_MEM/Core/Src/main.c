@@ -100,10 +100,11 @@ int main(void)
   MX_USART2_UART_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
+  printf("Iniciando MPU\r\n");
   MPU6050_init(&hi2c1);
   printf("Calculating gyro offset, do not move MPU6050\r\n");
   HAL_Delay(1000);
-  MPU6050_calcGyroOffsets();
+  //MPU6050_calcGyroOffsets();
   printf("Done!\r\n");
   /* USER CODE END 2 */
 
