@@ -207,8 +207,8 @@ int main(void)
 		//	  printnewtstr(220, YELLOW, &mono12x7bold, 1, (uint8_t *)" apos acesso ao ");
 		//	  printnewtstr(240, YELLOW, &mono12x7bold, 1, (uint8_t *)" SD Card ");
 		HAL_Delay(2000);
-		fillScreen(BLACK);
-		HAL_Delay(2000);
+		//fillScreen(BLACK);
+		//HAL_Delay(2000);
 		//========= 2a imagem ===========================================
 		//Primeiro bloco de dados, onde está o cabeçalho do BMP
 		first = 1;
@@ -273,8 +273,8 @@ int main(void)
 		//	  printnewtstr(220, YELLOW, &mono12x7bold, 1, (uint8_t *)" apos acesso ao ");
 		//	  printnewtstr(240, YELLOW, &mono12x7bold, 1, (uint8_t *)" SD Card ");
 		HAL_Delay(2000);
-		fillScreen(BLACK);
-		HAL_Delay(2000);
+		//fillScreen(BLACK);
+		//HAL_Delay(2000);
 
 		//========= 3a imagem ===========================================
 		//Primeiro bloco de dados, onde está o cabeçalho do BMP
@@ -340,8 +340,8 @@ int main(void)
 		//	  printnewtstr(220, YELLOW, &mono12x7bold, 1, (uint8_t *)" apos acesso ao ");
 		//	  printnewtstr(240, YELLOW, &mono12x7bold, 1, (uint8_t *)" SD Card ");
 		HAL_Delay(2000);
-		fillScreen(BLACK);
-		HAL_Delay(2000);
+		//fillScreen(BLACK);
+		//HAL_Delay(2000);
 
 		//========= 4a imagem ===========================================
 		//Primeiro bloco de dados, onde está o cabeçalho do BMP
@@ -407,8 +407,8 @@ int main(void)
 		//	  printnewtstr(220, YELLOW, &mono12x7bold, 1, (uint8_t *)" apos acesso ao ");
 		//	  printnewtstr(240, YELLOW, &mono12x7bold, 1, (uint8_t *)" SD Card ");
 		HAL_Delay(2000);
-		fillScreen(BLACK);
-		HAL_Delay(2000);
+		//fillScreen(BLACK);
+		//HAL_Delay(2000);
 	}
 
   /* USER CODE END 2 */
