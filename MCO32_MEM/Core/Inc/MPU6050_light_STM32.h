@@ -2,7 +2,7 @@
 #ifndef MPU6050_LIGHT_STM32_H
 #define MPU6050_LIGHT_STM32_H
 
-#define MPU6050_ADDR         0x68
+#define MPU6050_ADDR         0x69
 #define MPU6050_SMPLRT_DIV   0x19
 #define MPU6050_CONFIG       0x1a
 #define MPU6050_GYRO_CONFIG  0x1b
