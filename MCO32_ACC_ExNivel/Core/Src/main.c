@@ -25,7 +25,8 @@
 #include "tft.h"
 #include "user_setting.h"
 #include "functions.h"
-#include "stdio.h"
+#include "MPU6050_light_STM32.h"
+#include <stdio.h>
 #include <math.h>
 /* USER CODE END Includes */
 
@@ -52,6 +53,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
+
 TIM_HandleTypeDef htim1;
 
 UART_HandleTypeDef huart2;
@@ -65,6 +68,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM1_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 void setScreenSettings(void);
 void drawScenery(void);
@@ -72,7 +76,14 @@ void drawScenery(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+#ifdef __GNUC__
+/* With GCC/RAISONANCE, small printf (option LD Linker-
+>Libraries->Small printf
+set to 'Yes') calls __io_putchar() */
+#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+#else
+#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+#endif /* __GNUC__ */
 /* USER CODE END 0 */
 
 /**
@@ -82,7 +93,8 @@ void drawScenery(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+	uint32_t timer = 0;
+	float accX, accY;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -105,9 +117,13 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_TIM1_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
   setScreenSettings();
   drawScenery();
+
+  MPU6050_init(&hi2c1);
+  HAL_Delay(1000);
 
   /* USER CODE END 2 */
 
@@ -115,6 +131,15 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  if((HAL_GetTick() - timer) > 1000)
+	  {
+		  MPU6050_update();
+		  accX = MPU6050_getAccX();
+		  accY = MPU6050_getAccY();
+		  printf("X = %.2f\r\n", accX);
+		  printf("Y = %.2f\r\n", accY);
+		  timer = HAL_GetTick();
+	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -167,6 +192,40 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 400000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
 }
 
 /**
@@ -308,6 +367,20 @@ void drawScenery(void)
 {
 	fillScreen(SCREEN_BG);
 	fillCircle(160, 120, 120, WHITE); //Círculo de fundo
+}
+
+/**
+ * @brief Retargets the C library printf function to the USART.
+ * @param None
+ * @retval None
+ */
+PUTCHAR_PROTOTYPE
+{
+	/* Place your implementation of fputc here */
+	/* e.g. write a character to the USART2 and Loop until the end
+of transmission */
+	HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, 0xFFFF);
+	return ch;
 }
 
 /* USER CODE END 4 */
