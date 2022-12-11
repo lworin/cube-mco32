@@ -36,7 +36,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define SCREEN_ORIENTATION 0 //0: Retrato | 1: Paisagem
+#define SCREEN_ORIENTATION 1 //0: Retrato | 1: Paisagem
 #define SCREEN_BG BLACK //Cor de fundo
 
 /* Mais cores (em RGB 565) */
@@ -107,6 +107,7 @@ int main(void)
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
   setScreenSettings();
+  drawScenery();
 
   /* USER CODE END 2 */
 
@@ -306,7 +307,7 @@ void setScreenSettings(void)
 void drawScenery(void)
 {
 	fillScreen(SCREEN_BG);
-	fillCircle(319/2, 240/2, 140,WHITE);
+	fillCircle(160, 120, 120, WHITE); //Círculo de fundo
 }
 
 /* USER CODE END 4 */
