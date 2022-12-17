@@ -25,9 +25,7 @@
 #include "tft.h"
 #include "user_setting.h"
 #include "functions.h"
-#include "MPU6050_light_STM32.h"
-#include <stdio.h>
-#include <math.h>
+#include "stdio.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -37,14 +35,6 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define SCREEN_ORIENTATION 1 //0: Retrato | 1: Paisagem
-#define SCREEN_BG BLACK //Cor de fundo
-
-/* Mais cores (em RGB 565) */
-#define GREY 0xC618
-#define ORANGE 0xF9E0
-#define PURPLE 0x68FF
-
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -53,14 +43,13 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-I2C_HandleTypeDef hi2c1;
-
 TIM_HandleTypeDef htim1;
 
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
+uint16_t ID = 0;
+uint8_t input = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -68,22 +57,37 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM1_Init(void);
-static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
-void setScreenSettings(void);
-void drawScenery(void);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-#ifdef __GNUC__
-/* With GCC/RAISONANCE, small printf (option LD Linker-
->Libraries->Small printf
-set to 'Yes') calls __io_putchar() */
-#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
-#else
-#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
-#endif /* __GNUC__ */
+
+//Representa um estado da FSM
+struct State {
+	unsigned int out; //Saída para o estado
+	unsigned short wait; //Tempo de espera do estado
+	unsigned char next[2]; //Vetor de próximos estados
+};
+typedef const struct State tipoS;
+
+//Apelidos para referenciar os estados da FSM
+#define Vm 0
+#define Vd 1
+#define Am 2
+#define Apagado 3
+
+//Estrutura de dados que corresponde ao diagrama de transição de estados da FSM
+tipoS Fsm[4] = {	//estado	wait	next=0	next=1
+					{RED, 		3000, 	{Vd, 	Apagado}},
+					{GREEN, 	3000, 	{Am, 	Am}},
+					{YELLOW,	1000, 	{Vm, 	Apagado}},
+					{BLACK, 	1000, 	{Vm, 	Am}}
+};
+
+unsigned char cState;
+
 /* USER CODE END 0 */
 
 /**
@@ -93,9 +97,7 @@ set to 'Yes') calls __io_putchar() */
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	uint32_t timer;
-	uint16_t accX, accY;
-	//uint16_t nivX = 160, nivY = 120;
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -104,7 +106,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  //tft_gpio_init();
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -118,13 +120,17 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_TIM1_Init();
-  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  setScreenSettings();
-  drawScenery();
+  /* Sequência de inicialização do LCD */
+  tft_gpio_init(); //Inicializa os GPIOs do LCD (evita uso do CubeMX)
+  HAL_TIM_Base_Start(&htim1); //Inicializa o Timer1 (base de tempo de us do LCD)
+  ID = tft_readID(); //Lê o ID do LCD (poderia ser chamada pela inicialização do LCD)
+  HAL_Delay(100);
+  tft_init(ID); //Inicializa o LCD de acordo com seu ID
+  setRotation(0); //Ajusta a orientação da tela (retrato)
+  fillScreen(BLACK); //Preenche a tela em uma só cor
 
-  MPU6050_init(&hi2c1);
-  HAL_Delay(1000);
+  cState = Vm;
 
   /* USER CODE END 2 */
 
@@ -132,20 +138,15 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  //1. Saída baseada no estado atual
+	  fillScreen(Fsm[cState].out);
+	  //2. Aguarda o tempo predefinido para o estado
+	  HAL_Delay(Fsm[cState].wait);
+	  //3. Lê a entrada
+	  input = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_10); //Entrada B1 Pres./Não Pres.
+	  //4. Vai para o próximo estado, que depende da entrada e do estado atual
+	  cState = Fsm[cState].next[input];
 
-	  if((HAL_GetTick() - timer) > 100)
-	  {
-		  drawScenery();
-		  fillCircle(accX, accY, 10, SCREEN_BG);
-
-		  MPU6050_update();
-		  accX = (int16_t)(159+(100*MPU6050_getAccX()));
-		  accY = (int16_t)(119-(100*MPU6050_getAccY()));
-		  printf("X = %d, Y = %d\r\n", accX, accY);
-		  timer = HAL_GetTick();
-
-		  fillCircle(accX, accY, 10, WHITE);
-	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -198,40 +199,6 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-}
-
-/**
-  * @brief I2C1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_I2C1_Init(void)
-{
-
-  /* USER CODE BEGIN I2C1_Init 0 */
-
-  /* USER CODE END I2C1_Init 0 */
-
-  /* USER CODE BEGIN I2C1_Init 1 */
-
-  /* USER CODE END I2C1_Init 1 */
-  hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 400000;
-  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
-  hi2c1.Init.OwnAddress1 = 0;
-  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c1.Init.OwnAddress2 = 0;
-  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN I2C1_Init 2 */
-
-  /* USER CODE END I2C1_Init 2 */
-
 }
 
 /**
@@ -329,66 +296,47 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1|GPIO_PIN_7, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : B1_Pin */
-  GPIO_InitStruct.Pin = B1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_4|LD2_Pin
+                          |GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : LD2_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin;
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0|GPIO_PIN_10, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : PC13 PC10 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13|GPIO_PIN_10;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PC1 PC7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_7;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+  /*Configure GPIO pins : PA0 PA1 PA4 LD2_Pin
+                           PA8 PA9 PA10 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_4|LD2_Pin
+                          |GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PB0 PB10 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_10;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 }
 
 /* USER CODE BEGIN 4 */
-
-/**
- * @brief Configura o LCD
- */
-void setScreenSettings(void)
-{
-	tft_gpio_init(); //Inicializa os GPIOs do LCD (evita uso do CubeMX)
-	HAL_TIM_Base_Start(&htim1); //Inicializa o Timer1 (base de tempo de us do LCD)
-	uint16_t ID = tft_readID(); //Lê o ID do LCD (poderia ser chamada pela inicialização do LCD)
-	HAL_Delay(100);
-	tft_init(ID); //Inicializa o LCD de acordo com seu ID
-	setRotation(SCREEN_ORIENTATION); //Ajusta a orientação da tela (paisagem)
-	fillScreen(SCREEN_BG);
-}
-
-/**
- * @brief Desenha o cenário
- */
-void drawScenery(void)
-{
-	drawCircle(159, 119, 119, GREEN); //Círculo de fundo
-	drawLine(159, 0, 159, 239, RED); //Cruz vertical
-	drawLine(0, 119, 319, 119, RED); //Cruz horizontal
-}
-
-/**
- * @brief Retargets the C library printf function to the USART.
- * @param None
- * @retval None
- */
-PUTCHAR_PROTOTYPE
-{
-	/* Place your implementation of fputc here */
-	/* e.g. write a character to the USART2 and Loop until the end
-of transmission */
-	HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, 0xFFFF);
-	return ch;
-}
 
 /* USER CODE END 4 */
 
