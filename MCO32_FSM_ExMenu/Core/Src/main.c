@@ -60,7 +60,7 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
-void drawScreen(uint8_t tela);
+void drawScreen(uint16_t tela, uint16_t x, uint16_t y);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -68,7 +68,7 @@ void drawScreen(uint8_t tela);
 
 //Representa um estado da FSM
 struct State {
-	uint8_t out;
+	uint16_t out[3];
 	unsigned char next[5]; //Vetor de próximos estados
 };
 typedef const struct State tipoS;
@@ -95,22 +95,26 @@ typedef const struct State tipoS;
 #define C3Z 53
 
 //Estrutura de dados que corresponde ao diagrama de transição de estados da FSM
-tipoS Fsm[15] = {/*	Tela	0		1		2		3		4		*/
-					{1, {	A,		B,		C,		A1,		A	}},	//Estado A
-					{1, {	B, 		C,		A,		B1,		B	}},	//Estado B
-					{1, {	C, 		A,		B,		C1,		C	}},	//Estado C
+tipoS Fsm[15] = {/*	Tela, x, y			0		1		2		3		4		*/
+					{{1, 20, 040}, {	A,		B,		C,		A1,		A	}},	//Estado A
+					{{1, 20, 120}, {	B, 		C,		A,		B1,		B	}},	//Estado B
+					{{1, 20, 200}, {	C, 		A,		B,		C1,		C	}},	//Estado C
 
-					{2, {	A1, 	A2,		A3,		A1,		A	}},	//Estado A1
-					{2, {	A2, 	A3,		A1,		A2,		A	}},	//Estado A2
-					{2, {	A3, 	A1,		A2,		A3,		A	}},	//Estado A3
+					{{2, 20, 040}, {	A1, 	A2,		A3,		A1,		A	}},	//Estado A1
+					{{2, 20, 120}, {	A2, 	A3,		A1,		A2,		A	}},	//Estado A2
+					{{2, 20, 200}, {	A3, 	A1,		A2,		A3,		A	}},	//Estado A3
 
-					{3, {	B1, 	B2,		B3,		B1,		B	}},	//Estado B1
-					{3, {	B2, 	B3,		B1,		B2,		B	}},	//Estado B2
-					{3, {	B3, 	B1,		B2,		B3,		B	}},	//Estado B3
+					{{3, 20, 040}, {	B1, 	B2,		B3,		B1,		B	}},	//Estado B1
+					{{3, 20, 120}, {	B2, 	B3,		B1,		B2,		B	}},	//Estado B2
+					{{3, 20, 200}, {	B3, 	B1,		B2,		B3,		B	}},	//Estado B3
 
-					{4, {	C2, 	C3,		C1,		C3Y,	C3	}},	//Estado C2
-					{4, {	C1, 	C2,		C3,		C3X,	C3	}},	//Estado C1
-					{4, {	C3, 	C1,		C2,		C3Z,	C3	}},	//Estado C3
+					{{4, 20, 040}, {	C1, 	C3,		C1,		C1,		C	}},	//Estado C1
+					{{4, 20, 120}, {	C2, 	C2,		C3,		C2,		C	}},	//Estado C2
+					{{4, 20, 200}, {	C3, 	C1,		C2,		C3X,	C	}},	//Estado C3
+
+					{{5, 20, 040}, {	C3X, 	C3Y,	C3Z,	C3X,	C3	}},	//Estado C3X
+					{{5, 20, 120}, {	C3Y, 	C3Z,	C3X,	C3Y,	C3	}},	//Estado C3Y
+					{{5, 20, 200}, {	C3Z, 	C3X,	C3Y,	C3Z,	C3	}}	//Estado C3Z
 };
 
 unsigned char cState;
@@ -158,6 +162,8 @@ int main(void)
   fillScreen(BLACK); //Preenche a tela em preto
 
   cState = A;
+
+  drawScreen(Fsm[cState].out[0], Fsm[cState].out[1], Fsm[cState].out[2]);
 
   /* USER CODE END 2 */
 
@@ -372,12 +378,62 @@ static void MX_GPIO_Init(void)
 /**
  * @brief Desenha a tela
  */
-void drawScreen(uint8_t tela)
+void drawScreen(uint16_t tela, uint16_t x, uint16_t y)
 {
 	uint8_t titulo[10];
 	sprintf((char*) titulo, "Tela %d", tela);
 	fillScreen(BLACK); //Preenche a tela em preto
-	printnewtstr(15, WHITE, &mono12x7bold, 1, titulo);
+	printnewtstr(15, GREEN, &mono12x7bold, 1, titulo);
+
+	switch(tela)
+	{
+	case 1:
+		printnewtstr_bc(70, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   A"); //Item 1
+		drawRoundRect(20, 40, 200, 50, 10, WHITE); //Item 1
+		printnewtstr_bc(150, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   B"); //Item 2
+		drawRoundRect(20, 120, 200, 50, 10, WHITE); //Item 2
+		printnewtstr_bc(230, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   C"); //Item 3
+		drawRoundRect(20, 200, 200, 50, 10, WHITE); //Item 3
+		break;
+
+	case 2:
+		printnewtstr_bc(70, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   A1"); //Item 1
+		drawRoundRect(20, 40, 200, 50, 10, WHITE); //Item 1
+		printnewtstr_bc(150, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   A2"); //Item 2
+		drawRoundRect(20, 120, 200, 50, 10, WHITE); //Item 2
+		printnewtstr_bc(230, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   A3"); //Item 3
+		drawRoundRect(20, 200, 200, 50, 10, WHITE); //Item 3
+		break;
+
+	case 3:
+		printnewtstr_bc(70, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   B1"); //Item 1
+		drawRoundRect(20, 40, 200, 50, 10, WHITE); //Item 1
+		printnewtstr_bc(150, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   B2"); //Item 2
+		drawRoundRect(20, 120, 200, 50, 10, WHITE); //Item 2
+		printnewtstr_bc(230, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   B3"); //Item 3
+		drawRoundRect(20, 200, 200, 50, 10, WHITE); //Item 3
+		break;
+
+	case 4:
+		printnewtstr_bc(70, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   C1"); //Item 1
+		drawRoundRect(20, 40, 200, 50, 10, WHITE); //Item 1
+		printnewtstr_bc(150, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   C2"); //Item 2
+		drawRoundRect(20, 120, 200, 50, 10, WHITE); //Item 2
+		printnewtstr_bc(230, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   C3"); //Item 3
+		drawRoundRect(20, 200, 200, 50, 10, WHITE); //Item 3
+		break;
+
+	case 5:
+		printnewtstr_bc(70, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   C3X"); //Item 1
+		drawRoundRect(20, 40, 200, 50, 10, WHITE); //Item 1
+		printnewtstr_bc(150, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   C3Y"); //Item 2
+		drawRoundRect(20, 120, 200, 50, 10, WHITE); //Item 2
+		printnewtstr_bc(230, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   C3Z"); //Item 3
+		drawRoundRect(20, 200, 200, 50, 10, WHITE); //Item 3
+		break;
+	}
+
+	drawRoundRect(x, y, 200, 50, 10, RED); //Cursor
 }
 
 /* USER CODE END 4 */
