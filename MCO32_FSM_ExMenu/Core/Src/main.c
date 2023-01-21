@@ -25,7 +25,7 @@
 #include "tft.h"
 #include "user_setting.h"
 #include "functions.h"
-#include "stdio.h"
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,13 +45,17 @@
 
 /* Private variables ---------------------------------------------------------*/
 TIM_HandleTypeDef htim1;
+TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 uint16_t ID = 0;
-uint8_t sw1 = 0;
-uint8_t sw2 = 0;
+uint8_t flagSelect = 0;
+uint8_t flagBack = 0;
+unsigned char cState;
+int encoder = 0;
+uint8_t input = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -59,6 +63,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM1_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 void drawScreen(uint16_t tela, uint16_t x, uint16_t y);
 /* USER CODE END PFP */
@@ -74,25 +79,25 @@ struct State {
 typedef const struct State tipoS;
 
 //Apelidos para referenciar os estados da FSM
-#define A 1
-#define B 2
-#define C 3
+#define A 0
+#define B 1
+#define C 2
 
-#define A1 4
-#define A2 5
-#define A3 6
+#define A1 3
+#define A2 4
+#define A3 5
 
-#define B1 7
-#define B2 8
-#define B3 9
+#define B1 6
+#define B2 7
+#define B3 8
 
-#define C1 10
-#define C2 11
-#define C3 12
+#define C1 9
+#define C2 10
+#define C3 11
 
-#define C3X 13
-#define C3Y 14
-#define C3Z 15
+#define C3X 12
+#define C3Y 13
+#define C3Z 14
 
 //Estrutura de dados que corresponde ao diagrama de transição de estados da FSM
 tipoS Fsm[15] = {/*	Tela, x, y			0		1		2		3		4		*/
@@ -108,16 +113,14 @@ tipoS Fsm[15] = {/*	Tela, x, y			0		1		2		3		4		*/
 					{{3, 20, 120}, {	B2, 	B3,		B1,		B2,		B	}},	//Estado B2
 					{{3, 20, 200}, {	B3, 	B1,		B2,		B3,		B	}},	//Estado B3
 
-					{{4, 20,  40}, {	C1, 	C3,		C1,		C1,		C	}},	//Estado C1
-					{{4, 20, 120}, {	C2, 	C2,		C3,		C2,		C	}},	//Estado C2
+					{{4, 20,  40}, {	C1, 	C2,		C3,		C1,		C	}},	//Estado C1
+					{{4, 20, 120}, {	C2, 	C3,		C1,		C2,		C	}},	//Estado C2
 					{{4, 20, 200}, {	C3, 	C1,		C2,		C3X,	C	}},	//Estado C3
 
 					{{5, 20,  40}, {	C3X, 	C3Y,	C3Z,	C3X,	C3	}},	//Estado C3X
 					{{5, 20, 120}, {	C3Y, 	C3Z,	C3X,	C3Y,	C3	}},	//Estado C3Y
 					{{5, 20, 200}, {	C3Z, 	C3X,	C3Y,	C3Z,	C3	}}	//Estado C3Z
 };
-
-unsigned char cState;
 
 /* USER CODE END 0 */
 
@@ -151,6 +154,7 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_TIM1_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   /* Sequência de inicialização do LCD */
   tft_gpio_init(); //Inicializa os GPIOs do LCD (evita uso do CubeMX)
@@ -163,7 +167,13 @@ int main(void)
 
   cState = A;
 
-  //drawScreen(Fsm[cState].out[0], Fsm[cState].out[1], Fsm[cState].out[2]);
+  //Habilita o encoder
+  HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
+  //Zera o contador
+  __HAL_TIM_SET_COUNTER(&htim3, 0);
+
+  //Atualiza variável
+  encoder = __HAL_TIM_GET_COUNTER(&htim3)>>1;
 
   /* USER CODE END 2 */
 
@@ -172,28 +182,74 @@ int main(void)
   while (1)
   {
 	  /* Teste dos botões*/
-	  drawScreen(Fsm[cState].out[0], Fsm[cState].out[1], Fsm[cState].out[2]);
-	  HAL_Delay(1000);
-	  cState++;
+//	  drawScreen(Fsm[cState].out[0], Fsm[cState].out[1], Fsm[cState].out[2]);
+//	  HAL_Delay(1000);
+//	  cState++;
+//
+//	  if(cState >= 15)
+//	  {
+//		  cState = A;
+//	  }
 
-	  if(cState >= 15)
+	  /* Teste do encoder */
+	  //Testa se o contador de pulsos mudou
+//	  if(iBordas != __HAL_TIM_GET_COUNTER(&htim3))
+//	  {
+//		  //Atualuza a variável
+//		  iBordas = __HAL_TIM_GET_COUNTER(&htim3);
+//		  //Testa de o sentido de giro mudou
+//		  if(iDir != __HAL_TIM_DIRECTION_STATUS(&htim3))
+//		  {
+//			  //Atualiza a variável
+//			  iDir = __HAL_TIM_DIRECTION_STATUS(&htim3);
+//			  //Mostra o no sentido
+//			  if(iDir)
+//				  HAL_UART_Transmit(&huart2, "Sentido antihorario\r\n", 22, 100);
+//			  else
+//				  HAL_UART_Transmit(&huart2, "Sentido horario\r\n", 17, 100);
+//		  }
+//		  //Mostra o total de bordas
+//		  iSize = sprintf(sBordas, "Bordas: %d\r\n",iBordas);
+//		  HAL_UART_Transmit(&huart2, sBordas, iSize, 100);
+//		  //Mostra o total de clicks
+//		  iSize = sprintf(sBordas, "Clicks do KY-040: %d\r\n",iBordas>>1);
+//		  HAL_UART_Transmit(&huart2, sBordas, iSize, 100);
+//	  }
+
+	  /* 1. Saída baseada no estado atual */
+	  drawScreen(Fsm[cState].out[0], Fsm[cState].out[1], Fsm[cState].out[2]);
+
+	  /* 2. Aguarda o tempo predefinido para o estado */
+	  HAL_Delay(500);
+
+	  /* 3. Lê as entradas */
+	  if(flagBack)
 	  {
-		  cState = A;
+		  input = 4;
+		  flagBack = 0;
+	  }
+	  else if(flagSelect)
+	  {
+		  input = 3;
+		  flagSelect = 0;
+	  }
+	  else if(encoder > __HAL_TIM_GET_COUNTER(&htim3)>>1)
+	  {
+		  input = 2;
+		  encoder = __HAL_TIM_GET_COUNTER(&htim3)>>1;
+	  }
+	  else if(encoder < __HAL_TIM_GET_COUNTER(&htim3)>>1)
+	  {
+		  input = 1;
+		  encoder = __HAL_TIM_GET_COUNTER(&htim3)>>1;
+	  }
+	  else
+	  {
+		  input = 0;
 	  }
 
-	  /* Ciclo */
-//	  1. Saída baseada no estado atual
-//	  transition(Fsm[cState].out[0], Fsm[cState].out[1]);
-//
-//	  2. Aguarda o tempo predefinido para o estado
-//	  HAL_Delay(Fsm[cState].wait);
-//
-//	  3. Lê as entradas
-//	  sw1 = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_10); //Entrada SW1 (botoeira de pedestres)
-//	  sw2 = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_11); //Entrada SW2 (sinal de falha)
-//
-//	  4. Vai para o próximo estado, que depende da entrada e do estado atual
-//	  cState = Fsm[cState].next[sw1+(sw2<<1)];
+	  /* 4. Vai para o próximo estado, que depende da entrada e do estado atual */
+	  cState = Fsm[cState].next[input];
 
     /* USER CODE END WHILE */
 
@@ -296,6 +352,55 @@ static void MX_TIM1_Init(void)
 }
 
 /**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_Encoder_InitTypeDef sConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 0;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 65535;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  sConfig.EncoderMode = TIM_ENCODERMODE_TI1;
+  sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC1Filter = 15;
+  sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC2Filter = 15;
+  if (HAL_TIM_Encoder_Init(&htim3, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
+
+}
+
+/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -353,8 +458,8 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0|GPIO_PIN_10, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : PC13 PC10 PC11 */
-  GPIO_InitStruct.Pin = GPIO_PIN_13|GPIO_PIN_10|GPIO_PIN_11;
+  /*Configure GPIO pin : PC13 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
@@ -381,6 +486,24 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : btSelect_Pin btBack_Pin */
+  GPIO_InitStruct.Pin = btSelect_Pin|btBack_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB8 */
+  GPIO_InitStruct.Pin = GPIO_PIN_8;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Alternate = GPIO_AF1_TIM2;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 }
 
@@ -445,6 +568,18 @@ void drawScreen(uint16_t tela, uint16_t x, uint16_t y)
 	}
 
 	drawRoundRect(x, y, 200, 50, 10, RED); //Cursor
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	if(GPIO_Pin == GPIO_PIN_10)
+	{
+		flagSelect = 1;
+	}
+	else if(GPIO_Pin == GPIO_PIN_11)
+	{
+		flagBack = 1;
+	}
 }
 
 /* USER CODE END 4 */
