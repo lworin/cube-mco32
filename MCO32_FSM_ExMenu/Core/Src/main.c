@@ -35,7 +35,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define GREY 0x2104
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -78,41 +78,41 @@ typedef const struct State tipoS;
 #define B 2
 #define C 3
 
-#define A1 21
-#define A2 22
-#define A3 23
+#define A1 4
+#define A2 5
+#define A3 6
 
-#define B1 31
-#define B2 32
-#define B3 33
+#define B1 7
+#define B2 8
+#define B3 9
 
-#define C1 41
-#define C2 42
-#define C3 43
+#define C1 10
+#define C2 11
+#define C3 12
 
-#define C3X 51
-#define C3Y 52
-#define C3Z 53
+#define C3X 13
+#define C3Y 14
+#define C3Z 15
 
 //Estrutura de dados que corresponde ao diagrama de transição de estados da FSM
 tipoS Fsm[15] = {/*	Tela, x, y			0		1		2		3		4		*/
-					{{1, 20, 040}, {	A,		B,		C,		A1,		A	}},	//Estado A
+					{{1, 20,  40}, {	A,		B,		C,		A1,		A	}},	//Estado A
 					{{1, 20, 120}, {	B, 		C,		A,		B1,		B	}},	//Estado B
 					{{1, 20, 200}, {	C, 		A,		B,		C1,		C	}},	//Estado C
 
-					{{2, 20, 040}, {	A1, 	A2,		A3,		A1,		A	}},	//Estado A1
+					{{2, 20,  40}, {	A1, 	A2,		A3,		A1,		A	}},	//Estado A1
 					{{2, 20, 120}, {	A2, 	A3,		A1,		A2,		A	}},	//Estado A2
 					{{2, 20, 200}, {	A3, 	A1,		A2,		A3,		A	}},	//Estado A3
 
-					{{3, 20, 040}, {	B1, 	B2,		B3,		B1,		B	}},	//Estado B1
+					{{3, 20,  40}, {	B1, 	B2,		B3,		B1,		B	}},	//Estado B1
 					{{3, 20, 120}, {	B2, 	B3,		B1,		B2,		B	}},	//Estado B2
 					{{3, 20, 200}, {	B3, 	B1,		B2,		B3,		B	}},	//Estado B3
 
-					{{4, 20, 040}, {	C1, 	C3,		C1,		C1,		C	}},	//Estado C1
+					{{4, 20,  40}, {	C1, 	C3,		C1,		C1,		C	}},	//Estado C1
 					{{4, 20, 120}, {	C2, 	C2,		C3,		C2,		C	}},	//Estado C2
 					{{4, 20, 200}, {	C3, 	C1,		C2,		C3X,	C	}},	//Estado C3
 
-					{{5, 20, 040}, {	C3X, 	C3Y,	C3Z,	C3X,	C3	}},	//Estado C3X
+					{{5, 20,  40}, {	C3X, 	C3Y,	C3Z,	C3X,	C3	}},	//Estado C3X
 					{{5, 20, 120}, {	C3Y, 	C3Z,	C3X,	C3Y,	C3	}},	//Estado C3Y
 					{{5, 20, 200}, {	C3Z, 	C3X,	C3Y,	C3Z,	C3	}}	//Estado C3Z
 };
@@ -163,7 +163,7 @@ int main(void)
 
   cState = A;
 
-  drawScreen(Fsm[cState].out[0], Fsm[cState].out[1], Fsm[cState].out[2]);
+  //drawScreen(Fsm[cState].out[0], Fsm[cState].out[1], Fsm[cState].out[2]);
 
   /* USER CODE END 2 */
 
@@ -171,18 +171,29 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  //1. Saída baseada no estado atual
-	  //transition(Fsm[cState].out[0], Fsm[cState].out[1]);
+	  /* Teste dos botões*/
+	  drawScreen(Fsm[cState].out[0], Fsm[cState].out[1], Fsm[cState].out[2]);
+	  HAL_Delay(1000);
+	  cState++;
 
-	  //2. Aguarda o tempo predefinido para o estado
-	  //HAL_Delay(Fsm[cState].wait);
+	  if(cState >= 15)
+	  {
+		  cState = A;
+	  }
 
-	  //3. Lê as entradas
-	  //sw1 = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_10); //Entrada SW1 (botoeira de pedestres)
-	  //sw2 = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_11); //Entrada SW2 (sinal de falha)
-
-	  //4. Vai para o próximo estado, que depende da entrada e do estado atual
-	  //cState = Fsm[cState].next[sw1+(sw2<<1)];
+	  /* Ciclo */
+//	  1. Saída baseada no estado atual
+//	  transition(Fsm[cState].out[0], Fsm[cState].out[1]);
+//
+//	  2. Aguarda o tempo predefinido para o estado
+//	  HAL_Delay(Fsm[cState].wait);
+//
+//	  3. Lê as entradas
+//	  sw1 = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_10); //Entrada SW1 (botoeira de pedestres)
+//	  sw2 = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_11); //Entrada SW2 (sinal de falha)
+//
+//	  4. Vai para o próximo estado, que depende da entrada e do estado atual
+//	  cState = Fsm[cState].next[sw1+(sw2<<1)];
 
     /* USER CODE END WHILE */
 
@@ -382,44 +393,44 @@ void drawScreen(uint16_t tela, uint16_t x, uint16_t y)
 {
 	uint8_t titulo[10];
 	sprintf((char*) titulo, "Tela %d", tela);
-	fillScreen(BLACK); //Preenche a tela em preto
-	printnewtstr(15, GREEN, &mono12x7bold, 1, titulo);
+	//fillScreen(BLACK); //Preenche a tela em preto
+	printnewtstr_bc(15, GREEN, BLACK, &mono12x7bold, 1, titulo);
 
 	switch(tela)
 	{
 	case 1:
-		printnewtstr_bc(70, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   A"); //Item 1
+		printnewtstr_bc(70, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   A  "); //Item 1
 		drawRoundRect(20, 40, 200, 50, 10, WHITE); //Item 1
-		printnewtstr_bc(150, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   B"); //Item 2
+		printnewtstr_bc(150, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   B  "); //Item 2
 		drawRoundRect(20, 120, 200, 50, 10, WHITE); //Item 2
-		printnewtstr_bc(230, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   C"); //Item 3
+		printnewtstr_bc(230, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   C  "); //Item 3
 		drawRoundRect(20, 200, 200, 50, 10, WHITE); //Item 3
 		break;
 
 	case 2:
-		printnewtstr_bc(70, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   A1"); //Item 1
+		printnewtstr_bc(70, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   A1 "); //Item 1
 		drawRoundRect(20, 40, 200, 50, 10, WHITE); //Item 1
-		printnewtstr_bc(150, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   A2"); //Item 2
+		printnewtstr_bc(150, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   A2 "); //Item 2
 		drawRoundRect(20, 120, 200, 50, 10, WHITE); //Item 2
-		printnewtstr_bc(230, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   A3"); //Item 3
+		printnewtstr_bc(230, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   A3 "); //Item 3
 		drawRoundRect(20, 200, 200, 50, 10, WHITE); //Item 3
 		break;
 
 	case 3:
-		printnewtstr_bc(70, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   B1"); //Item 1
+		printnewtstr_bc(70, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   B1 "); //Item 1
 		drawRoundRect(20, 40, 200, 50, 10, WHITE); //Item 1
-		printnewtstr_bc(150, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   B2"); //Item 2
+		printnewtstr_bc(150, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   B2 "); //Item 2
 		drawRoundRect(20, 120, 200, 50, 10, WHITE); //Item 2
-		printnewtstr_bc(230, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   B3"); //Item 3
+		printnewtstr_bc(230, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   B3 "); //Item 3
 		drawRoundRect(20, 200, 200, 50, 10, WHITE); //Item 3
 		break;
 
 	case 4:
-		printnewtstr_bc(70, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   C1"); //Item 1
+		printnewtstr_bc(70, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   C1 "); //Item 1
 		drawRoundRect(20, 40, 200, 50, 10, WHITE); //Item 1
-		printnewtstr_bc(150, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   C2"); //Item 2
+		printnewtstr_bc(150, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   C2 "); //Item 2
 		drawRoundRect(20, 120, 200, 50, 10, WHITE); //Item 2
-		printnewtstr_bc(230, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   C3"); //Item 3
+		printnewtstr_bc(230, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   C3 "); //Item 3
 		drawRoundRect(20, 200, 200, 50, 10, WHITE); //Item 3
 		break;
 
