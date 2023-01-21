@@ -23,7 +23,7 @@
 /* USER CODE BEGIN Includes */
 #include "MPU6050_light_STM32.h"
 #include <math.h>
-#include<stdio.h>
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
