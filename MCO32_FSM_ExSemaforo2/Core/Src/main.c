@@ -35,6 +35,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define GREY 0x2104
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -49,7 +50,8 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 uint16_t ID = 0;
-uint8_t input = 0;
+uint8_t sw1 = 0;
+uint8_t sw2 = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -58,7 +60,8 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
-
+void drawScenery();
+void transition(uint16_t veh, uint16_t ped);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -66,24 +69,26 @@ static void MX_TIM1_Init(void);
 
 //Representa um estado da FSM
 struct State {
-	unsigned int out; //Saída para o estado
+	unsigned int out[2]; //Saída para o estado
 	unsigned short wait; //Tempo de espera do estado
-	unsigned char next[2]; //Vetor de próximos estados
+	unsigned char next[4]; //Vetor de próximos estados
 };
 typedef const struct State tipoS;
 
 //Apelidos para referenciar os estados da FSM
-#define Vm 0
-#define Vd 1
-#define Am 2
-#define Apagado 3
+#define Vm 0 //Vermelho
+#define Vd 1 //Verde
+#define Am 2 //Amarelo
+#define Ap 3 //Apagado
+#define Vl 4 //Vermelho longo
 
 //Estrutura de dados que corresponde ao diagrama de transição de estados da FSM
-tipoS Fsm[4] = {	//estado	wait	next=0	next=1
-					{RED, 		3000, 	{Vd, 	Apagado}},
-					{GREEN, 	3000, 	{Am, 	Am}},
-					{YELLOW,	1000, 	{Vm, 	Apagado}},
-					{BLACK, 	1000, 	{Vm, 	Am}}
+tipoS Fsm[5] = {	//saídaV	saídaP		wait	next=00	next=01 next=10 next = 11
+					{{RED, 		GREEN}, 	5000, 	{Vd, 	Ap,		Vl,		Ap}},	//Estado Vm
+					{{GREEN, 	RED}, 		5000, 	{Am, 	Am,		Am,		Am}},	//Estado Vd
+					{{YELLOW, 	RED},		1000, 	{Vm, 	Ap,		Vm,		Ap}},	//Estado Am
+					{{BLACK, 	RED}, 		1000, 	{Vm, 	Am,		Vm,		Am}},	//Estado Ap
+					{{RED, 		GREEN}, 	5000, 	{Vd, 	Ap,		Vd,		Ap}}	//Estado Vl
 };
 
 unsigned char cState;
@@ -127,8 +132,8 @@ int main(void)
   ID = tft_readID(); //Lê o ID do LCD (poderia ser chamada pela inicialização do LCD)
   HAL_Delay(100);
   tft_init(ID); //Inicializa o LCD de acordo com seu ID
-  setRotation(0); //Ajusta a orientação da tela (retrato)
-  fillScreen(BLACK); //Preenche a tela em uma só cor
+  setRotation(1); //Ajusta a orientação da tela (paisagem)
+  drawScenery();
 
   cState = Vm;
 
@@ -139,13 +144,17 @@ int main(void)
   while (1)
   {
 	  //1. Saída baseada no estado atual
-	  fillScreen(Fsm[cState].out);
+	  transition(Fsm[cState].out[0], Fsm[cState].out[1]);
+
 	  //2. Aguarda o tempo predefinido para o estado
 	  HAL_Delay(Fsm[cState].wait);
-	  //3. Lê a entrada
-	  input = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_10); //Entrada B1 Pres./Não Pres.
+
+	  //3. Lê as entradas
+	  sw1 = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_10); //Entrada SW1 (botoeira de pedestres)
+	  sw2 = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_11); //Entrada SW2 (sinal de falha)
+
 	  //4. Vai para o próximo estado, que depende da entrada e do estado atual
-	  cState = Fsm[cState].next[input];
+	  cState = Fsm[cState].next[sw1+(sw2<<1)];
 
     /* USER CODE END WHILE */
 
@@ -305,8 +314,8 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0|GPIO_PIN_10, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : PC13 PC10 */
-  GPIO_InitStruct.Pin = GPIO_PIN_13|GPIO_PIN_10;
+  /*Configure GPIO pins : PC13 PC10 PC11 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13|GPIO_PIN_10|GPIO_PIN_11;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
@@ -337,6 +346,58 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+/**
+ * @brief Desenha o cenário
+ */
+void drawScenery()
+{
+	fillScreen(WHITE); //Preenche a tela em branco
+	fillRect(35, 35, 75, 180, GREY); //Semáforo de veículos
+	fillCircle(71, 63, 20, RED); //Vermelho
+	fillCircle(71, 124, 20, YELLOW); //Amarelo
+	fillCircle(71, 185, 20, GREEN); //Verde
+
+	fillRect(212, 46, 75, 140, GREY); //Semáforo de veículos
+	fillRoundRect(224, 64, 50, 50, 5, RED); //Vermelho
+	fillRoundRect(224, 127, 50, 50, 5, GREEN); //Verde
+}
+
+void transition(uint16_t veh, uint16_t ped)
+{
+	fillCircle(71, 63, 20, BLACK); //Vermelho
+	fillCircle(71, 124, 20, BLACK); //Amarelo
+	fillCircle(71, 185, 20, BLACK); //Verde
+
+	fillRoundRect(224, 64, 50, 50, 5, BLACK); //Vermelho
+	fillRoundRect(224, 127, 50, 50, 5, BLACK); //Verde
+
+	switch(veh)
+	{
+	case GREEN:
+		fillCircle(71, 185, 20, GREEN); //Verde
+		break;
+
+	case RED:
+		fillCircle(71, 63, 20, RED); //Vermelho
+		break;
+
+	case YELLOW:
+		fillCircle(71, 124, 20, YELLOW); //Amarelo
+		break;
+	}
+
+	switch(ped)
+	{
+	case GREEN:
+		fillRoundRect(224, 127, 50, 50, 5, GREEN); //Verde
+		break;
+
+	case RED:
+		fillRoundRect(224, 64, 50, 50, 5, RED); //Vermelho
+		break;
+	}
+}
 
 /* USER CODE END 4 */
 
