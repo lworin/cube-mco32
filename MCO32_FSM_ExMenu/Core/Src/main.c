@@ -122,6 +122,8 @@ tipoS Fsm[15] = {/*	Tela, x, y			0		1		2		3		4		*/
 					{{5, 20, 200}, {	C3Z, 	C3X,	C3Y,	C3Z,	C3	}}	//Estado C3Z
 };
 
+
+
 /* USER CODE END 0 */
 
 /**
@@ -173,6 +175,7 @@ int main(void)
   __HAL_TIM_SET_COUNTER(&htim3, 0);
 
   //Atualiza variável
+
   encoder = __HAL_TIM_GET_COUNTER(&htim3)>>1;
 
   /* USER CODE END 2 */
@@ -220,6 +223,7 @@ int main(void)
 	  drawScreen(Fsm[cState].out[0], Fsm[cState].out[1], Fsm[cState].out[2]);
 
 	  /* 2. Aguarda o tempo predefinido para o estado */
+
 	  HAL_Delay(500);
 
 	  /* 3. Lê as entradas */
@@ -247,6 +251,7 @@ int main(void)
 	  {
 		  input = 0;
 	  }
+
 
 	  /* 4. Vai para o próximo estado, que depende da entrada e do estado atual */
 	  cState = Fsm[cState].next[input];
@@ -487,11 +492,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+
   /*Configure GPIO pins : btSelect_Pin btBack_Pin */
   GPIO_InitStruct.Pin = btSelect_Pin|btBack_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
 
   /*Configure GPIO pin : PB8 */
   GPIO_InitStruct.Pin = GPIO_PIN_8;
@@ -501,10 +508,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF1_TIM2;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
-
 }
 
 /* USER CODE BEGIN 4 */
