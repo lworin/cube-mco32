@@ -53,9 +53,10 @@ UART_HandleTypeDef huart2;
 uint16_t ID = 0;
 uint8_t flagSelect = 0;
 uint8_t flagBack = 0;
-unsigned char cState;
+unsigned char cState, pState = 100;
 int encoder = 0;
 uint8_t input = 0;
+uint16_t mem[15];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -167,7 +168,11 @@ int main(void)
   setRotation(0); //Ajusta a orientação da tela (retrato)
   fillScreen(BLACK); //Preenche a tela em preto
 
-  cState = A;
+  cState = A; //Inicia no estado A
+
+  //Define todos os itens como não selecionados
+  for(int i = A; i<=C3Z; i++)
+	  mem[i] = WHITE;
 
   //Habilita o encoder
   HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
@@ -184,58 +189,54 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  /* Teste dos botões*/
-//	  drawScreen(Fsm[cState].out[0], Fsm[cState].out[1], Fsm[cState].out[2]);
-//	  HAL_Delay(1000);
-//	  cState++;
-//
-//	  if(cState >= 15)
-//	  {
-//		  cState = A;
-//	  }
-
-	  /* Teste do encoder */
-	  //Testa se o contador de pulsos mudou
-//	  if(iBordas != __HAL_TIM_GET_COUNTER(&htim3))
-//	  {
-//		  //Atualuza a variável
-//		  iBordas = __HAL_TIM_GET_COUNTER(&htim3);
-//		  //Testa de o sentido de giro mudou
-//		  if(iDir != __HAL_TIM_DIRECTION_STATUS(&htim3))
-//		  {
-//			  //Atualiza a variável
-//			  iDir = __HAL_TIM_DIRECTION_STATUS(&htim3);
-//			  //Mostra o no sentido
-//			  if(iDir)
-//				  HAL_UART_Transmit(&huart2, "Sentido antihorario\r\n", 22, 100);
-//			  else
-//				  HAL_UART_Transmit(&huart2, "Sentido horario\r\n", 17, 100);
-//		  }
-//		  //Mostra o total de bordas
-//		  iSize = sprintf(sBordas, "Bordas: %d\r\n",iBordas);
-//		  HAL_UART_Transmit(&huart2, sBordas, iSize, 100);
-//		  //Mostra o total de clicks
-//		  iSize = sprintf(sBordas, "Clicks do KY-040: %d\r\n",iBordas>>1);
-//		  HAL_UART_Transmit(&huart2, sBordas, iSize, 100);
-//	  }
-
 	  /* 1. Saída baseada no estado atual */
-	  drawScreen(Fsm[cState].out[0], Fsm[cState].out[1], Fsm[cState].out[2]);
+	  if((cState != pState) || flagSelect == 2)
+	  {
+		  drawScreen(Fsm[cState].out[0], Fsm[cState].out[1], Fsm[cState].out[2]);
+		  pState = cState;
+		  flagSelect = 0;
+	  }
 
 	  /* 2. Aguarda o tempo predefinido para o estado */
 
-	  HAL_Delay(500);
+	  //HAL_Delay(500);
 
 	  /* 3. Lê as entradas */
-	  if(flagBack)
+	  if(flagBack == 1)
 	  {
 		  input = 4;
 		  flagBack = 0;
 	  }
-	  else if(flagSelect)
+	  else if(flagSelect == 1)
 	  {
 		  input = 3;
-		  flagSelect = 0;
+		  flagSelect = 2;
+
+		  if((cState >= A1)&&(cState <= A3))
+		  {
+			  mem[A1] = WHITE;
+			  mem[A2] = WHITE;
+			  mem[A3] = WHITE;
+		  }
+		  else if((cState >= B1)&&(cState <= B3))
+		  {
+			  mem[B1] = WHITE;
+			  mem[B2] = WHITE;
+			  mem[B3] = WHITE;
+		  }
+		  else if((cState >= C1)&&(cState <= C2))
+		  {
+			  mem[C1] = WHITE;
+			  mem[C2] = WHITE;
+		  }
+		  else if((cState >= C3X)&&(cState <= C3Z))
+		  {
+			  mem[C3X] = WHITE;
+			  mem[C3Y] = WHITE;
+			  mem[C3Z] = WHITE;
+		  }
+
+		  mem[cState] = RED;
 	  }
 	  else if(encoder > __HAL_TIM_GET_COUNTER(&htim3)>>1)
 	  {
@@ -251,7 +252,6 @@ int main(void)
 	  {
 		  input = 0;
 	  }
-
 
 	  /* 4. Vai para o próximo estado, que depende da entrada e do estado atual */
 	  cState = Fsm[cState].next[input];
@@ -538,38 +538,38 @@ void drawScreen(uint16_t tela, uint16_t x, uint16_t y)
 		break;
 
 	case 2:
-		printnewtstr_bc(70, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   A1 "); //Item 1
+		printnewtstr_bc(70, mem[A1], BLACK, &mono12x7bold, 1, (uint8_t*)"   A1 "); //Item 1
 		drawRoundRect(20, 40, 200, 50, 10, WHITE); //Item 1
-		printnewtstr_bc(150, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   A2 "); //Item 2
+		printnewtstr_bc(150, mem[A2], BLACK, &mono12x7bold, 1, (uint8_t*)"   A2 "); //Item 2
 		drawRoundRect(20, 120, 200, 50, 10, WHITE); //Item 2
-		printnewtstr_bc(230, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   A3 "); //Item 3
+		printnewtstr_bc(230, mem[A3], BLACK, &mono12x7bold, 1, (uint8_t*)"   A3 "); //Item 3
 		drawRoundRect(20, 200, 200, 50, 10, WHITE); //Item 3
 		break;
 
 	case 3:
-		printnewtstr_bc(70, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   B1 "); //Item 1
+		printnewtstr_bc(70, mem[B1], BLACK, &mono12x7bold, 1, (uint8_t*)"   B1 "); //Item 1
 		drawRoundRect(20, 40, 200, 50, 10, WHITE); //Item 1
-		printnewtstr_bc(150, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   B2 "); //Item 2
+		printnewtstr_bc(150, mem[B2], BLACK, &mono12x7bold, 1, (uint8_t*)"   B2 "); //Item 2
 		drawRoundRect(20, 120, 200, 50, 10, WHITE); //Item 2
-		printnewtstr_bc(230, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   B3 "); //Item 3
+		printnewtstr_bc(230, mem[B3], BLACK, &mono12x7bold, 1, (uint8_t*)"   B3 "); //Item 3
 		drawRoundRect(20, 200, 200, 50, 10, WHITE); //Item 3
 		break;
 
 	case 4:
-		printnewtstr_bc(70, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   C1 "); //Item 1
+		printnewtstr_bc(70, mem[C1], BLACK, &mono12x7bold, 1, (uint8_t*)"   C1 "); //Item 1
 		drawRoundRect(20, 40, 200, 50, 10, WHITE); //Item 1
-		printnewtstr_bc(150, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   C2 "); //Item 2
+		printnewtstr_bc(150, mem[C2], BLACK, &mono12x7bold, 1, (uint8_t*)"   C2 "); //Item 2
 		drawRoundRect(20, 120, 200, 50, 10, WHITE); //Item 2
 		printnewtstr_bc(230, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   C3 "); //Item 3
 		drawRoundRect(20, 200, 200, 50, 10, WHITE); //Item 3
 		break;
 
 	case 5:
-		printnewtstr_bc(70, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   C3X"); //Item 1
+		printnewtstr_bc(70, mem[C3X], BLACK, &mono12x7bold, 1, (uint8_t*)"   C3X"); //Item 1
 		drawRoundRect(20, 40, 200, 50, 10, WHITE); //Item 1
-		printnewtstr_bc(150, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   C3Y"); //Item 2
+		printnewtstr_bc(150, mem[C3Y], BLACK, &mono12x7bold, 1, (uint8_t*)"   C3Y"); //Item 2
 		drawRoundRect(20, 120, 200, 50, 10, WHITE); //Item 2
-		printnewtstr_bc(230, WHITE, BLACK, &mono12x7bold, 1, (uint8_t*)"   C3Z"); //Item 3
+		printnewtstr_bc(230, mem[C3Z], BLACK, &mono12x7bold, 1, (uint8_t*)"   C3Z"); //Item 3
 		drawRoundRect(20, 200, 200, 50, 10, WHITE); //Item 3
 		break;
 	}
