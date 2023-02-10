@@ -228,8 +228,9 @@ void USBH_HID_EventCallback(USBH_HandleTypeDef *phost)
 		HID_MOUSE_Info_TypeDef *Mouse_Info;
 		Mouse_Info = USBH_HID_GetMouseInfo(phost);
 		int X_Val = Mouse_Info->x;
-		int Y_Val = Mouse_Info->y;if(X_Val > 127) X_Val -= 255;
-		if(Y_Val > 127) Y_Val -= 255;
+		int Y_Val = Mouse_Info->y;
+		if(X_Val > 127) X_Val -= 255;
+		//if(Y_Val > 127) Y_Val -= 255;
 		int len = sprintf(Uart_buf, "X=%d, Y=%d, Button1=%d, Button2=%d, Button3=%d\r\n", X_Val, Y_Val, \
 				Mouse_Info->buttons[0], Mouse_Info->buttons[1], Mouse_Info->buttons[2]);
 		HAL_UART_Transmit(&huart2, (uint8_t *)Uart_buf, len, 1000);
