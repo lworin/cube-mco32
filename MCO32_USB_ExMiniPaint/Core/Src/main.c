@@ -6,7 +6,7 @@
   ******************************************************************************
   * @attention
   *
-  * Copyright (c) 2023 STMicroelectronics.
+  * Copyright (c) 2022 STMicroelectronics.
   * All rights reserved.
   *
   * This software is licensed under terms that can be found in the LICENSE file
@@ -22,6 +22,11 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "fonts.h"
+#include "tft.h"
+#include "user_setting.h"
+#include "functions.h"
+#include <stdio.h>
 #include "usbh_hid.h"
 /* USER CODE END Includes */
 
@@ -40,16 +45,23 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+TIM_HandleTypeDef htim1;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+uint16_t ID = 0;
 char Uart_buf[100];
+int X_Val;
+int Y_Val;
+uint8_t flagButtons[3];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_TIM1_Init(void);
 void MX_USB_HOST_Process(void);
 
 /* USER CODE BEGIN PFP */
@@ -77,7 +89,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  //tft_gpio_init();
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -90,15 +102,72 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
+  MX_TIM1_Init();
   MX_USB_HOST_Init();
   /* USER CODE BEGIN 2 */
+  /* Sequência de inicialização do LCD */
+  tft_gpio_init(); //Inicializa os GPIOs do LCD (evita uso do CubeMX)
+  HAL_TIM_Base_Start(&htim1); //Inicializa o Timer1 (base de tempo de us do LCD)
+  ID = tft_readID(); //Lê o ID do LCD (poderia ser chamada pela inicialização do LCD)
+  HAL_Delay(100);
+  tft_init(ID); //Inicializa o LCD de acordo com seu ID
+  setRotation(1); //Ajusta a orientação da tela (paisagem)
+  fillScreen(BLACK); //Preenche a tela em uma só cor
 
+  int16_t xTela = 160, yTela = 120;
+  uint16_t colors[] = {WHITE, BLUE, RED, GREEN, CYAN, MAGENTA, YELLOW};
+
+  uint8_t c = 0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  /* Movimentação */
+
+	  if(!flagButtons[0])
+	  {
+		  fillRect(xTela, yTela, 5, 5, BLACK); //Apaga cursor
+	  }
+	  else
+	  {
+		  flagButtons[0] = 0;
+	  }
+
+	  xTela += X_Val; //Incrementa coordenada em X
+	  yTela += Y_Val; //Incrementa coordenada em Y
+	  X_Val = 0; //Zera valor
+	  Y_Val = 0; //Zera valor
+
+	  /* Evita sair da tela */
+	  if(xTela > 319)
+		  xTela = 319;
+	  else if (xTela < 0)
+		  xTela = 0;
+	  if(yTela > 239)
+		  yTela = 239;
+	  else if (yTela < 0)
+		  yTela = 0;
+
+	  fillRect(xTela, yTela, 5, 5, colors[c]); //Desenha cursor
+
+	  /* Limpar tela */
+	  if(flagButtons[2]) //Se o botão de scroll for pressionado
+	  {
+		  fillScreen(BLACK); //Preenche com preto
+		  flagButtons[2] = 0;
+	  }
+
+	  /* Trocar cor */
+	  if(flagButtons[1]) //Se o botão direito for pressionado
+	  {
+		  c++; //Passa para próxima cor
+		  if(c > 6) c = 0; //Se chegou no fim da lista volta para o começo
+		  flagButtons[1] = 0;
+	  }
+
+
     /* USER CODE END WHILE */
     MX_USB_HOST_Process();
 
@@ -154,6 +223,52 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 84-1;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 0xFFFF-1;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
+
+}
+
+/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -202,7 +317,14 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1|GPIO_PIN_7, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_4|LD2_Pin
+                          |GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0|GPIO_PIN_10, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -210,12 +332,28 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LD2_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin;
+  /*Configure GPIO pins : PC1 PC7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_7;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PA0 PA1 PA4 LD2_Pin
+                           PA8 PA9 PA10 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_4|LD2_Pin
+                          |GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PB0 PB10 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_10;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 }
 
@@ -227,10 +365,22 @@ void USBH_HID_EventCallback(USBH_HandleTypeDef *phost)
 	{
 		HID_MOUSE_Info_TypeDef *Mouse_Info;
 		Mouse_Info = USBH_HID_GetMouseInfo(phost);
-		int X_Val = Mouse_Info->x;
-		int Y_Val = Mouse_Info->y;
+
+		/* Posicionamento */
+		X_Val = Mouse_Info->x;
+		Y_Val = Mouse_Info->y;
 		if(X_Val > 127) X_Val -= 255;
 		if(Y_Val > 127) Y_Val -= 255;
+
+		/* Botões */
+		if(Mouse_Info->buttons[0])
+			flagButtons[0] = 1;
+		if(Mouse_Info->buttons[1])
+			flagButtons[1] = 1;
+		if(Mouse_Info->buttons[2])
+			flagButtons[2] = 1;
+
+		/* Debug pela serial */
 		int len = sprintf(Uart_buf, "X=%d, Y=%d, Button1=%d, Button2=%d, Button3=%d\r\n", X_Val, Y_Val, \
 				Mouse_Info->buttons[0], Mouse_Info->buttons[1], Mouse_Info->buttons[2]);
 		HAL_UART_Transmit(&huart2, (uint8_t *)Uart_buf, len, 1000);
